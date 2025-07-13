@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { db } from './firebase'
+import { db } from "@/app/firebase"
 import { ref, onValue, runTransaction } from 'firebase/database'
 import { useSearchParams } from 'next/navigation'
 
