@@ -1,33 +1,46 @@
 'use client'
 
 import { useState, useEffect } from "react"
-import { app } from './firebase'
-import { getDatabase, ref, onValue, set } from 'firebase/database'
+import { ref, onValue, runTransaction } from "firebase/database"
+import { db } from "./firebase" // pastikan path ini bener ya
 
 export default function VotingPage() {
   const [votes, setVotes] = useState({ furina: 0, multifungsi: 0 })
   const [hasVoted, setHasVoted] = useState(false)
 
-  const db = getDatabase(app)
-
+  // Ambil data dari Firebase secara realtime
   useEffect(() => {
-    const voteRef = ref(db, 'votes')
-    onValue(voteRef, (snapshot) => {
-      const data = snapshot.val()
-      if (data) setVotes(data)
+    const furinaRef = ref(db, "votes/furina")
+    const multiRef = ref(db, "votes/multifungsi")
+
+    const unsubFurina = onValue(furinaRef, (snap) => {
+      setVotes((prev) => ({ ...prev, furina: snap.val() || 0 }))
     })
 
-    const voted = localStorage.getItem("hasVoted")
-    if (voted === "true") setHasVoted(true)
+    const unsubMulti = onValue(multiRef, (snap) => {
+      setVotes((prev) => ({ ...prev, multifungsi: snap.val() || 0 }))
+    })
+
+    const votedFlag = localStorage.getItem("hasVoted")
+    if (votedFlag === "true") setHasVoted(true)
+
+    return () => {
+      unsubFurina()
+      unsubMulti()
+    }
   }, [])
 
+  // 🔥 Kode ini yang kamu maksud: buat voting + simpan ke Firebase
   const handleVote = (type: "furina" | "multifungsi") => {
     if (hasVoted) return
-    const newVotes = { ...votes, [type]: votes[type] + 1 }
-    set(ref(db, 'votes'), newVotes)
-    setVotes(newVotes)
-    setHasVoted(true)
-    localStorage.setItem("hasVoted", "true")
+
+    const voteRef = ref(db, `votes/${type}`)
+    runTransaction(voteRef, (current) => {
+      return (current || 0) + 1
+    }).then(() => {
+      setHasVoted(true)
+      localStorage.setItem("hasVoted", "true")
+    })
   }
 
   const total = votes.furina + votes.multifungsi
